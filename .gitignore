@@ -128,3 +128,5 @@ dmypy.json
 
 /scratch.py
 /ghostdriver.log
+/seats.json
+/s.json
