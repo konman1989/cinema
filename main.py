@@ -4,9 +4,10 @@ import requests
 
 from requests_body import book_left_and_right_seat, book_seats_front_back
 
-link = 'https://gate.multiplex.ua/site/seats.html?CinemaId=0000000017&SessionId=140062&anchor=07012020&back_url=https://multiplex.ua/movie/353052#07012020'
-user_row = 11
-user_seats = [4, 5, 6]
+# link = 'https://gate.multiplex.ua/site/seats.html?CinemaId=0000000017&SessionId=140062&anchor=07012020&back_url=https://multiplex.ua/movie/353052#07012020'
+link = "https://gate.multiplex.ua/site/seats.html?CinemaId=0000000003&SessionId=72214&anchor=07012020&back_url=https://multiplex.ua/movie/353052#07012020"
+user_row = 5
+user_seats = [10, 11, 12]
 
 
 def fetch_cinema_and_session_id(url: str) -> list:
@@ -45,12 +46,18 @@ def fetch_seats_schema(url: str, row: int, seats: list) -> dict or None:
                     dict_['Rows'][0].get("Seats")) > 3:
                 seats_list.extend(item.get('Seats'))
                 seats_schema['area_category'] = dict_.get("AreaCategoryCode")
+                seats_schema['ticket_type'] = dict_.get("TicketTypeCode")
+
+    for dict_ in seats_schema['seats_dict']['SessionTickets']:
+        if dict_.get('AreaCategoryCode') == seats_schema['area_category'] \
+                and dict_.get('PriceInCents') > 0:
+            seats_schema['ticket_type'] = dict_.get("TicketTypeCode")
 
     try:
         seats_schema['first_seat'] = [i.get('Position') for i in seats_list
-                                      if i.get('Id') == str(min(seats))][0]
+                                      if i.get('Id') == str(min(seats) - 1)][0]
         seats_schema['last_seat'] = [i.get('Position') for i in seats_list
-                                     if i.get('Id') == str(max(seats))][0]
+                                     if i.get('Id') == str(max(seats) + 1)][0]
     except IndexError:
         return
 
@@ -66,8 +73,10 @@ def book_seats_non_greedy(url: str, row: int, seats: list) -> None or str:
     request_body = book_left_and_right_seat(seats_schema)
 
     try:
-        requests.post(url, json=request_body.get("left"))
-        requests.post(url, json=request_body.get("right"))
+        data = requests.post(url, json=request_body.get("left"))
+        print(data.text)
+        data = requests.post(url, json=request_body.get("right"))
+        print(data.text)
     except AttributeError:
         return "Row or seat number is wrong"
 
@@ -94,5 +103,5 @@ def book_seats_greedy(url: str, row: int, seats: list) -> None or str:
 
 
 if __name__ == '__main__':
-    book_seats_non_greedy(link, user_row, user_seats)
+    # book_seats_non_greedy(link, user_row, user_seats)
     book_seats_greedy(link, user_row, user_seats)
