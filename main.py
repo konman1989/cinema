@@ -2,10 +2,11 @@ import json
 import re
 import requests
 
+from requests_body import book_left_and_right_seat, book_seats_front_back
 
-link = 'https://gate.multiplex.ua/site/seats.html?CinemaId=0000000017&SessionId=139986&anchor=06012020&back_url=https://multiplex.ua/movie/353052#nothing'
+link = 'https://gate.multiplex.ua/site/seats.html?CinemaId=0000000017&SessionId=140062&anchor=07012020&back_url=https://multiplex.ua/movie/353052#07012020'
 user_row = 11
-user_seat = 4
+user_seats = [4, 5, 6]
 
 
 def fetch_cinema_and_session_id(url: str) -> list:
@@ -16,8 +17,8 @@ def fetch_cinema_and_session_id(url: str) -> list:
     return result
 
 
-def book_seats(url: str, row: int, seat: int) -> None or str:
-    """Books seats every 7 minutes"""
+def fetch_seats_schema(url: str, row: int, seats: list) -> dict or None:
+    """Finds left and right seats to the booked ones"""
 
     cinema_session_id = fetch_cinema_and_session_id(url)
 
@@ -29,69 +30,69 @@ def book_seats(url: str, row: int, seat: int) -> None or str:
         "Client": "siteMX"
     }
     data = requests.post(url, json=request_body)
-    session_id = data.json().get('SessionId')
 
-    seats = data.json().get('Data')
-    seats_dict = json.loads(seats)
-    area_category = ""
-    seat_parameters = {}
-    try:
-        for dict_ in seats_dict["SeatLayoutData"]["Areas"]:
-            for item in dict_["Rows"]:
-                if item['PhysicalName'] == str(row):
-                    seat_parameters = item['Seats'][seat - 1].get("Position")
-                    area_category = dict_.get("AreaCategoryCode")
-                    # ticket_type_code =
-    except IndexError:
-        return "Seat number is wrong"
-
-    try:
-        request_body = {
-            "command": "setorder",
-            "params": "{\"cinemas\":\"%s\",\"sessions\":\"%s\","
-                      "\"TicketTypes\":\"[{\\\"TicketTypeCode\\\":\\\"0025\\\","
-                      "\\\"Qty\\\":\\\"1\\\",\\\"OptionalBarcode\\\":null}]\","
-                      "\"SelectedSeats\":"
-                      "\"[{\\\"AreaCategoryCode\\\":\\\"%s\\\","
-                      "\\\"AreaNumber\\\":\\\"%d\\\",\\\"RowIndex\\\":\\\"%d\\\","
-                      "\\\"ColumnIndex\\\":\\\"%d\\\"}]\"}" % (
-                          cinema_session_id[0], cinema_session_id[1],
-                          area_category,
-                          seat_parameters['AreaNumber'],
-                          seat_parameters['RowIndex'],
-                          seat_parameters['ColumnIndex'] + 1,
-                      ),
-            "SessionId": f"{session_id}",
-            "Client": "siteMX"
-        }
-    except KeyError:
-        return "Row number is wrong"
-
-    data = requests.post(url, json=request_body)
-    print(data.text)
-
-    request_body = {
-        "command": "setorder",
-        "params": "{\"cinemas\":\"%s\",\"sessions\":\"%s\","
-                  "\"TicketTypes\":\"[{\\\"TicketTypeCode\\\":\\\"0025\\\","
-                  "\\\"Qty\\\":\\\"1\\\",\\\"OptionalBarcode\\\":null}]\","
-                  "\"SelectedSeats\":"
-                  "\"[{\\\"AreaCategoryCode\\\":\\\"%s\\\","
-                  "\\\"AreaNumber\\\":\\\"%d\\\",\\\"RowIndex\\\":\\\"%d\\\","
-                  "\\\"ColumnIndex\\\":\\\"%d\\\"}]\"}" % (
-                      cinema_session_id[0], cinema_session_id[1],
-                      area_category,
-                      seat_parameters['AreaNumber'],
-                      seat_parameters['RowIndex'],
-                      seat_parameters['ColumnIndex'] - 1,
-                  ),
-        "SessionId": f"{session_id}",
-        "Client": "siteMX"
+    seats_schema = {
+        'cinema_id': cinema_session_id[0],
+        'cinema_session_id': cinema_session_id[1],
+        'user_session_id': data.json().get('SessionId'),
+        'seats_dict': json.loads(data.json().get('Data'))
     }
 
-    data = requests.post(url, json=request_body)
-    print(data.text)
+    seats_list = []
+    for dict_ in seats_schema['seats_dict']["SeatLayoutData"]["Areas"]:
+        for item in dict_['Rows']:
+            if item.get('PhysicalName') == str(row) and len(
+                    dict_['Rows'][0].get("Seats")) > 3:
+                seats_list.extend(item.get('Seats'))
+                seats_schema['area_category'] = dict_.get("AreaCategoryCode")
+
+    try:
+        seats_schema['first_seat'] = [i.get('Position') for i in seats_list
+                                      if i.get('Id') == str(min(seats))][0]
+        seats_schema['last_seat'] = [i.get('Position') for i in seats_list
+                                     if i.get('Id') == str(max(seats))][0]
+    except IndexError:
+        return
+
+    seats_schema.pop('seats_dict', None)
+
+    return seats_schema
+
+
+def book_seats_non_greedy(url: str, row: int, seats: list) -> None or str:
+    """Books 2 seats to the left and to the right every 7 minutes"""
+
+    seats_schema = fetch_seats_schema(url, row, seats)
+    request_body = book_left_and_right_seat(seats_schema)
+
+    try:
+        requests.post(url, json=request_body.get("left"))
+        requests.post(url, json=request_body.get("right"))
+    except AttributeError:
+        return "Row or seat number is wrong"
+
+
+def book_seats_greedy(url: str, row: int, seats: list) -> None or str:
+    """Books seats all around the booked seats every 7 minutes"""
+
+    seats_schema = fetch_seats_schema(url, row, seats)
+    seats_schema_front = fetch_seats_schema(url, row - 1, seats)
+    seats_schema_back = fetch_seats_schema(url, row + 1, seats)
+    request_body = book_seats_front_back(seats, seats_schema,
+                                         seats_schema_front,
+                                         seats_schema_back)
+
+    try:
+        requests.post(url, json=request_body.get("left"))
+        requests.post(url, json=request_body.get("right"))
+
+        for _ in seats:
+            requests.post(url, json=request_body.get("front").get(_))
+            requests.post(url, json=request_body.get("back").get(_))
+    except AttributeError:
+        return "Row number is wrong"
 
 
 if __name__ == '__main__':
-    print(book_seats(link, user_row, user_seat))
+    book_seats_non_greedy(link, user_row, user_seats)
+    book_seats_greedy(link, user_row, user_seats)
