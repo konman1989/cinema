@@ -58,7 +58,6 @@ def book_seats_front_back(seats: list, schema: dict, schema_front: dict,
     request_body = book_left_and_right_seat(schema)
 
     try:
-        next_seat = 0
         for item in seats:
             request_body["front"].update(
                 {item: {
@@ -77,17 +76,13 @@ def book_seats_front_back(seats: list, schema: dict, schema_front: dict,
                                   schema_front['first_seat'].get('AreaNumber'),
                                   schema_front['first_seat'].get('RowIndex'),
                                   schema_front['seats_list'].get(item)
-                                  # schema_front['first_seat'].get(
-                                  #     'ColumnIndex') + next_seat,
                               ),
                     "SessionId": f"{schema['user_session_id']}",
                     "Client": "siteMX"
                 }})
-            next_seat += 1
     except TypeError:
         pass
     try:
-        next_seat = 0
         for item in seats:
             request_body["back"].update(
                 {item: {
@@ -106,13 +101,10 @@ def book_seats_front_back(seats: list, schema: dict, schema_front: dict,
                                   schema_back['first_seat'].get('AreaNumber'),
                                   schema_back['first_seat'].get('RowIndex'),
                                   schema_back['seats_list'].get(item)
-                                  # schema_back['first_seat'].get(
-                                  #     'ColumnIndex') + next_seat,
                               ),
                     "SessionId": f"{schema['user_session_id']}",
                     "Client": "siteMX"
                 }})
-            next_seat += 1
     except TypeError:
         return
     finally:

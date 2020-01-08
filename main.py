@@ -5,9 +5,10 @@ import requests
 from requests_body import book_left_and_right_seat, book_seats_front_back
 
 link = 'https://gate.multiplex.ua/site/seats.html?CinemaId=0000000017&SessionId=140141&anchor=08012020&back_url=https://multiplex.ua/movie/353052#08012020'
-# link = "https://gate.multiplex.ua/site/seats.html?CinemaId=0000000003&SessionId=72257&back_url=https://multiplex.ua/movie/353052"
+link = "https://gate.multiplex.ua/site/seats.html?CinemaId=0000000003&SessionId=72257&back_url=https://multiplex.ua/movie/353052"
+# link = 'https://gate.multiplex.ua/site/seats.html?CinemaId=0000000002&SessionId=102165&anchor=08012020&back_url=https://multiplex.ua/movie/353052#08012020'
 user_row = 3
-user_seats = [10, 11, 12]
+user_seats = [3, 4]
 
 
 def fetch_cinema_and_session_id(url: str) -> list:
@@ -64,7 +65,6 @@ def fetch_seats_schema(url: str, row: int, seats: list) -> dict or None:
                                       if i.get('Id') == str(min(seats) - 1)][0]
         seats_schema['last_seat'] = [i.get('Position') for i in seats_list
                                      if i.get('Id') == str(max(seats) + 1)][0]
-
     except IndexError:
         return
 
@@ -108,6 +108,6 @@ def book_seats_greedy(url: str, row: int, seats: list) -> None or str:
 
 
 if __name__ == '__main__':
-    book_seats_non_greedy(link, user_row, user_seats)
+    # book_seats_non_greedy(link, user_row, user_seats)
     book_seats_greedy(link, user_row, user_seats)
 
