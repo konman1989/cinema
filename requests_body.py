@@ -1,7 +1,7 @@
 def book_left_and_right_seat(schema: dict) -> dict or None:
     """Returns dictionary of requests body ready to be called to book
     left and right seats"""
-    print(schema)
+
     try:
         request_body = {
             "left": {
@@ -76,8 +76,9 @@ def book_seats_front_back(seats: list, schema: dict, schema_front: dict,
                                   schema_front['area_category'],
                                   schema_front['first_seat'].get('AreaNumber'),
                                   schema_front['first_seat'].get('RowIndex'),
-                                  schema_front['first_seat'].get(
-                                      'ColumnIndex') + next_seat,
+                                  schema_front['seats_list'].get(item)
+                                  # schema_front['first_seat'].get(
+                                  #     'ColumnIndex') + next_seat,
                               ),
                     "SessionId": f"{schema['user_session_id']}",
                     "Client": "siteMX"
@@ -104,8 +105,9 @@ def book_seats_front_back(seats: list, schema: dict, schema_front: dict,
                                   schema_back['area_category'],
                                   schema_back['first_seat'].get('AreaNumber'),
                                   schema_back['first_seat'].get('RowIndex'),
-                                  schema_back['first_seat'].get(
-                                      'ColumnIndex') + next_seat,
+                                  schema_back['seats_list'].get(item)
+                                  # schema_back['first_seat'].get(
+                                  #     'ColumnIndex') + next_seat,
                               ),
                     "SessionId": f"{schema['user_session_id']}",
                     "Client": "siteMX"
