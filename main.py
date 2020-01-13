@@ -1,28 +1,26 @@
 import json
-import re
 import requests
 
 from requests_body import book_left_and_right_seat, book_seats_front_back
-
-link = 'https://gate.multiplex.ua/site/seats.html?CinemaId=0000000017&SessionId=140141&anchor=08012020&back_url=https://multiplex.ua/movie/353052#08012020'
-link = "https://gate.multiplex.ua/site/seats.html?CinemaId=0000000003&SessionId=72257&back_url=https://multiplex.ua/movie/353052"
-# link = 'https://gate.multiplex.ua/site/seats.html?CinemaId=0000000002&SessionId=102165&anchor=08012020&back_url=https://multiplex.ua/movie/353052#08012020'
-user_row = 3
-user_seats = [3, 4]
+from showtime import fetch_cinema_and_session_id
 
 
-def fetch_cinema_and_session_id(url: str) -> list:
-    """Getting CinemaID, sessionID from the link provided"""
+user_data = {
+    'link': 'https://multiplex.ua/movie/353005',
+    'date': "15 января",
+    'time': "21:55"
+}
 
-    pattern = re.compile(r"[0-9]+")
-    result = re.findall(pattern, url)
-    return result
+user_row = 10
+user_seats = [14, 15, 16]
 
 
-def fetch_seats_schema(url: str, row: int, seats: list) -> dict or None:
+def fetch_seats_schema(data: dict, row: int,
+                       seats: list) -> dict or None:
     """Finds left and right seats to the booked ones"""
 
-    cinema_session_id = fetch_cinema_and_session_id(url)
+    cinema_session_id = fetch_cinema_and_session_id(data)
+    url = cinema_session_id[2]
 
     request_body = {
         "command": "getseatsplan",
@@ -31,13 +29,14 @@ def fetch_seats_schema(url: str, row: int, seats: list) -> dict or None:
         "SessionId": None,
         "Client": "siteMX"
     }
-    data = requests.post(url, json=request_body)
 
+    request = requests.post(url, json=request_body)
     seats_schema = {
         'cinema_id': cinema_session_id[0],
         'cinema_session_id': cinema_session_id[1],
-        'user_session_id': data.json().get('SessionId'),
-        'seats_dict': json.loads(data.json().get('Data'))
+        'user_session_id': request.json().get('SessionId'),
+        'seats_dict': json.loads(request.json().get('Data')),
+        'link': url
     }
 
     seats_list = []
@@ -73,11 +72,13 @@ def fetch_seats_schema(url: str, row: int, seats: list) -> dict or None:
     return seats_schema
 
 
-def book_seats_non_greedy(url: str, row: int, seats: list) -> None or str:
+def book_seats_non_greedy(data: dict, row: int,
+                          seats: list) -> None or str:
     """Books 2 seats to the left and to the right every 7 minutes"""
 
-    seats_schema = fetch_seats_schema(url, row, seats)
+    seats_schema = fetch_seats_schema(data, row, seats)
     request_body = book_left_and_right_seat(seats_schema)
+    url = seats_schema.get('link')
 
     try:
         requests.post(url, json=request_body.get("left"))
@@ -86,12 +87,14 @@ def book_seats_non_greedy(url: str, row: int, seats: list) -> None or str:
         return "Row or seat number is wrong"
 
 
-def book_seats_greedy(url: str, row: int, seats: list) -> None or str:
+def book_seats_greedy(data: dict, row: int,
+                      seats: list) -> None or str:
     """Books seats all around the booked seats every 7 minutes"""
 
-    seats_schema = fetch_seats_schema(url, row, seats)
-    seats_schema_front = fetch_seats_schema(url, row - 1, seats)
-    seats_schema_back = fetch_seats_schema(url, row + 1, seats)
+    seats_schema = fetch_seats_schema(data, row, seats)
+    url = seats_schema.get('link')
+    seats_schema_front = fetch_seats_schema(data, row - 1, seats)
+    seats_schema_back = fetch_seats_schema(data, row + 1, seats)
     request_body = book_seats_front_back(seats, seats_schema,
                                          seats_schema_front,
                                          seats_schema_back)
@@ -108,6 +111,6 @@ def book_seats_greedy(url: str, row: int, seats: list) -> None or str:
 
 
 if __name__ == '__main__':
-    # book_seats_non_greedy(link, user_row, user_seats)
-    book_seats_greedy(link, user_row, user_seats)
+    # book_seats_non_greedy(user_data, user_row, user_seats)
+    book_seats_greedy(user_data, user_row, user_seats)
 
