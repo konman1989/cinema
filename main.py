@@ -6,12 +6,13 @@ from showtime import fetch_cinema_and_session_id
 
 
 user_data = {
-    'link': 'https://multiplex.ua/movie/353005',
-    'date': "15 января",
-    'time': "21:55"
+    'link': 'https://multiplex.ua/movie/353292',
+    'cinema': 'SkyMall',
+    'date': "14 января",
+    'time': "22:05"
 }
 
-user_row = 10
+user_row = 13
 user_seats = [14, 15, 16]
 
 
@@ -20,6 +21,7 @@ def fetch_seats_schema(data: dict, row: int,
     """Finds left and right seats to the booked ones"""
 
     cinema_session_id = fetch_cinema_and_session_id(data)
+
     url = cinema_session_id[2]
 
     request_body = {
